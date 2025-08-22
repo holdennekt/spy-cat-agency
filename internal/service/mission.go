@@ -83,6 +83,14 @@ func (s *MissionService) AssignCat(missionID, catID uint) (*models.Mission, erro
 		return nil, custerr.NewConflictErr("cannot assign cat to completed mission")
 	}
 
+	activeMission, err := s.missionRepo.GetActiveByCatID(catID)
+	if err != nil {
+		return nil, err
+	}
+	if activeMission != nil {
+		return nil, custerr.NewConflictErr("cat already has an active mission")
+	}
+
 	mission.CatID = &catID
 
 	return mission, s.missionRepo.Update(mission)

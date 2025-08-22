@@ -16,6 +16,7 @@ type MissionRepository interface {
 	GetByID(id uint) (*models.Mission, error)
 	Update(mission *models.Mission) error
 	Delete(id uint) error
+	GetActiveByCatID(catID uint) (*models.Mission, error)
 }
 
 type TargetRepository interface {

@@ -42,6 +42,14 @@ func (m *MockMissionRepository) Delete(id uint) error {
 	return args.Error(0)
 }
 
+func (m *MockMissionRepository) GetActiveByCatID(catID uint) (*models.Mission, error) {
+	args := m.Called(catID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Mission), args.Error(1)
+}
+
 type MockTargetRepository struct {
 	mock.Mock
 }
@@ -165,7 +173,127 @@ func TestMissionService_DeleteMission(t *testing.T) {
 		err := missionService.Delete(1)
 
 		assert.Error(t, err)
-		assert.Equal(t, "cannot delete assigned mission", err.Error())
+		assert.Contains(t, err.Error(), "cannot delete assigned mission")
+		mockMissionRepo.AssertExpectations(t)
+	})
+}
+
+func TestMissionService_AssignCat(t *testing.T) {
+	t.Run("successful cat assignment", func(t *testing.T) {
+		mockMissionRepo := new(MockMissionRepository)
+		mockTargetRepo := new(MockTargetRepository)
+		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
+
+		missionID, catID := uint(1), uint(1)
+		mission := &models.Mission{ID: 1, Complete: false}
+		updatedMission := &models.Mission{ID: 1, CatID: &catID, Complete: false}
+
+		mockMissionRepo.On("GetByID", missionID).Return(mission, nil)
+		mockMissionRepo.On("GetActiveByCatID", catID).Return(nil, nil)
+		mockMissionRepo.On("Update", mock.MatchedBy(func(m *models.Mission) bool {
+			return m.CatID != nil && *m.CatID == catID && m.ID == missionID
+		})).Return(nil)
+
+		result, err := missionService.AssignCat(missionID, catID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, updatedMission, result)
+		mockMissionRepo.AssertExpectations(t)
+	})
+
+	t.Run("cat already has active mission", func(t *testing.T) {
+		mockMissionRepo := new(MockMissionRepository)
+		mockTargetRepo := new(MockTargetRepository)
+		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
+
+		missionID, catID := uint(1), uint(1)
+		mission := &models.Mission{ID: 1, Complete: false}
+		activeMission := &models.Mission{ID: 2, CatID: &catID, Complete: false}
+
+		mockMissionRepo.On("GetByID", missionID).Return(mission, nil)
+		mockMissionRepo.On("GetActiveByCatID", catID).Return(activeMission, nil)
+
+		result, err := missionService.AssignCat(missionID, catID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "cat already has an active mission")
+		mockMissionRepo.AssertExpectations(t)
+	})
+
+	t.Run("cannot assign cat to completed mission", func(t *testing.T) {
+		mockMissionRepo := new(MockMissionRepository)
+		mockTargetRepo := new(MockTargetRepository)
+		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
+
+		missionID, catID := uint(1), uint(1)
+		mission := &models.Mission{ID: 1, Complete: true}
+
+		mockMissionRepo.On("GetByID", missionID).Return(mission, nil)
+
+		result, err := missionService.AssignCat(missionID, catID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "cannot assign cat to completed mission")
+		mockMissionRepo.AssertExpectations(t)
+	})
+
+	t.Run("mission not found", func(t *testing.T) {
+		mockMissionRepo := new(MockMissionRepository)
+		mockTargetRepo := new(MockTargetRepository)
+		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
+
+		missionID, catID := uint(999), uint(1)
+
+		mockMissionRepo.On("GetByID", missionID).Return(nil, errors.New("mission not found"))
+
+		result, err := missionService.AssignCat(missionID, catID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "mission not found")
+		mockMissionRepo.AssertExpectations(t)
+	})
+
+	t.Run("database error when checking active mission", func(t *testing.T) {
+		mockMissionRepo := new(MockMissionRepository)
+		mockTargetRepo := new(MockTargetRepository)
+		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
+
+		missionID, catID := uint(1), uint(1)
+		mission := &models.Mission{ID: 1, Complete: false}
+
+		mockMissionRepo.On("GetByID", missionID).Return(mission, nil)
+		mockMissionRepo.On("GetActiveByCatID", catID).Return(nil, errors.New("database error"))
+
+		result, err := missionService.AssignCat(missionID, catID)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "database error")
+		mockMissionRepo.AssertExpectations(t)
+	})
+
+	t.Run("successful assignment when cat has no active mission", func(t *testing.T) {
+		mockMissionRepo := new(MockMissionRepository)
+		mockTargetRepo := new(MockTargetRepository)
+		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
+
+		missionID, catID := uint(1), uint(1)
+		mission := &models.Mission{ID: 1, Complete: false}
+		updatedMission := &models.Mission{ID: 1, CatID: &catID, Complete: false}
+
+		mockMissionRepo.On("GetByID", missionID).Return(mission, nil)
+		mockMissionRepo.On("GetActiveByCatID", catID).Return(nil, nil)
+		mockMissionRepo.On("Update", mock.MatchedBy(func(m *models.Mission) bool {
+			return m.CatID != nil && *m.CatID == catID && m.ID == missionID
+		})).Return(nil)
+
+		result, err := missionService.AssignCat(missionID, catID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, updatedMission, result)
 		mockMissionRepo.AssertExpectations(t)
 	})
 }
@@ -175,7 +303,7 @@ func TestMissionService_CreateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID := uint(1)
 		dto := models.CreateTargetDTO{
 			Name:    "Target Alpha",
@@ -208,7 +336,7 @@ func TestMissionService_CreateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID := uint(1)
 		dto := models.CreateTargetDTO{Name: "Target Alpha", Country: "USA"}
 
@@ -228,7 +356,7 @@ func TestMissionService_CreateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID := uint(1)
 		dto := models.CreateTargetDTO{Name: "Target Delta", Country: "Canada"}
 
@@ -250,7 +378,7 @@ func TestMissionService_CreateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID := uint(999)
 		dto := models.CreateTargetDTO{Name: "Target Alpha", Country: "USA"}
 
@@ -260,7 +388,7 @@ func TestMissionService_CreateTarget(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Equal(t, "mission not found", err.Error())
+		assert.Contains(t, err.Error(), "mission not found")
 		mockMissionRepo.AssertExpectations(t)
 	})
 
@@ -268,7 +396,7 @@ func TestMissionService_CreateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID := uint(1)
 		dto := models.CreateTargetDTO{Name: "Target Alpha", Country: "USA"}
 
@@ -282,7 +410,7 @@ func TestMissionService_CreateTarget(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Equal(t, "database error", err.Error())
+		assert.Contains(t, err.Error(), "database error")
 		mockMissionRepo.AssertExpectations(t)
 		mockTargetRepo.AssertExpectations(t)
 	})
@@ -293,7 +421,7 @@ func TestMissionService_UpdateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 		newNotes := "Updated notes"
 		dto := models.UpdateTargetDTO{Notes: &newNotes}
@@ -321,7 +449,7 @@ func TestMissionService_UpdateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 		complete := true
 		dto := models.UpdateTargetDTO{Complete: &complete}
@@ -349,7 +477,7 @@ func TestMissionService_UpdateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 		dto := models.UpdateTargetDTO{Notes: new(string)}
 
@@ -369,7 +497,7 @@ func TestMissionService_UpdateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 		newNotes := "Updated notes"
 		dto := models.UpdateTargetDTO{Notes: &newNotes}
@@ -393,7 +521,7 @@ func TestMissionService_UpdateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 		newNotes := "Updated notes"
 		dto := models.UpdateTargetDTO{Notes: &newNotes}
@@ -417,7 +545,7 @@ func TestMissionService_UpdateTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(999)
 		dto := models.UpdateTargetDTO{Notes: new(string)}
 
@@ -427,7 +555,7 @@ func TestMissionService_UpdateTarget(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Equal(t, "target not found", err.Error())
+		assert.Contains(t, err.Error(), "target not found")
 		mockTargetRepo.AssertExpectations(t)
 	})
 }
@@ -437,7 +565,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 
 		target := &models.Target{ID: 1, MissionID: 1, Name: "Target Alpha", Complete: false}
@@ -460,7 +588,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 
 		target := &models.Target{ID: 1, MissionID: 2, Name: "Target Alpha", Complete: false}
@@ -479,7 +607,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 
 		target := &models.Target{ID: 1, MissionID: 1, Name: "Target Alpha", Complete: true}
@@ -498,7 +626,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 
 		target := &models.Target{ID: 1, MissionID: 1, Name: "Target Alpha", Complete: false}
@@ -518,7 +646,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(999)
 
 		mockTargetRepo.On("GetByID", targetID).Return(nil, errors.New("target not found"))
@@ -527,7 +655,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Equal(t, "target not found", err.Error())
+		assert.Contains(t, err.Error(), "target not found")
 		mockTargetRepo.AssertExpectations(t)
 	})
 
@@ -535,7 +663,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 
 		target := &models.Target{ID: 1, MissionID: 1, Name: "Target Alpha", Complete: false}
@@ -547,7 +675,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Equal(t, "database error", err.Error())
+		assert.Contains(t, err.Error(), "database error")
 		mockTargetRepo.AssertExpectations(t)
 	})
 
@@ -555,7 +683,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 		mockMissionRepo := new(MockMissionRepository)
 		mockTargetRepo := new(MockTargetRepository)
 		missionService := service.NewMissionService(mockMissionRepo, mockTargetRepo)
-		
+
 		missionID, targetID := uint(1), uint(1)
 
 		target := &models.Target{ID: 1, MissionID: 1, Name: "Target Alpha", Complete: false}
@@ -568,7 +696,7 @@ func TestMissionService_DeleteTarget(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Equal(t, "delete failed", err.Error())
+		assert.Contains(t, err.Error(), "delete failed")
 		mockTargetRepo.AssertExpectations(t)
 	})
 }

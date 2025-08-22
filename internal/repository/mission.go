@@ -72,3 +72,15 @@ func (r *MissionRepository) Delete(id uint) error {
 	}
 	return nil
 }
+
+func (r *MissionRepository) GetActiveByCatID(catID uint) (*models.Mission, error) {
+	var mission models.Mission
+	err := r.db.Preload("Cat").Preload("Targets").Where("cat_id = ? AND complete = ?", catID, false).First(&mission).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, custerr.NewInternalErr(err)
+	}
+	return &mission, nil
+}
