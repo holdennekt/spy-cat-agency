@@ -1,0 +1,724 @@
+basePath: /api/v1
+definitions:
+  models.Cat:
+    properties:
+      breed:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      mission:
+        $ref: '#/definitions/models.Mission'
+      name:
+        type: string
+      salary:
+        minimum: 0
+        type: number
+      updated_at:
+        type: string
+      years_experience:
+        minimum: 0
+        type: integer
+    required:
+    - breed
+    - name
+    - salary
+    - years_experience
+    type: object
+  models.CreateCatDTO:
+    properties:
+      breed:
+        type: string
+      name:
+        type: string
+      salary:
+        minimum: 0
+        type: number
+      years_experience:
+        minimum: 0
+        type: integer
+    required:
+    - breed
+    - name
+    - salary
+    - years_experience
+    type: object
+  models.CreateMissionDTO:
+    properties:
+      targets:
+        items:
+          $ref: '#/definitions/models.CreateTargetDTO'
+        maxItems: 3
+        minItems: 1
+        type: array
+    required:
+    - targets
+    type: object
+  models.CreateTargetDTO:
+    properties:
+      country:
+        type: string
+      name:
+        type: string
+      notes:
+        type: string
+    required:
+    - country
+    - name
+    type: object
+  models.Mission:
+    properties:
+      cat:
+        $ref: '#/definitions/models.Cat'
+      cat_id:
+        type: integer
+      complete:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: integer
+      targets:
+        items:
+          $ref: '#/definitions/models.Target'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  models.Target:
+    properties:
+      complete:
+        type: boolean
+      country:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      mission_id:
+        type: integer
+      name:
+        type: string
+      notes:
+        type: string
+      updated_at:
+        type: string
+    required:
+    - country
+    - name
+    type: object
+  models.UpdateCatDTO:
+    properties:
+      salary:
+        minimum: 0
+        type: number
+    required:
+    - salary
+    type: object
+  models.UpdateMissionDTO:
+    properties:
+      complete:
+        type: boolean
+    type: object
+  models.UpdateTargetDTO:
+    properties:
+      complete:
+        type: boolean
+      notes:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: A REST API for managing spy cats and their missions
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Spy Cat Agency API
+  version: "1.0"
+paths:
+  /cats:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all cats with their missions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Cat'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all cats
+      tags:
+      - Cats
+    post:
+      consumes:
+      - application/json
+      description: Create a new cat with breed validation using TheCatAPI
+      parameters:
+      - description: Cat data
+        in: body
+        name: dto
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateCatDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Cat'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new cat
+      tags:
+      - Cats
+  /cats/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a cat (only if not on active mission)
+      parameters:
+      - description: Cat ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete cat
+      tags:
+      - Cats
+    get:
+      consumes:
+      - application/json
+      description: Get a single cat by its ID with mission details
+      parameters:
+      - description: Cat ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Cat'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get cat by ID
+      tags:
+      - Cats
+    patch:
+      consumes:
+      - application/json
+      description: Update a cat's salary (only salary can be modified)
+      parameters:
+      - description: Cat ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update data
+        in: body
+        name: dto
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateCatDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update cat salary
+      tags:
+      - Cats
+  /missions:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all missions with cats and targets
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Mission'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get all missions
+      tags:
+      - Missions
+    post:
+      consumes:
+      - application/json
+      description: Create a new mission with 1-3 targets
+      parameters:
+      - description: Mission data
+        in: body
+        name: dto
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateMissionDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Mission'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new mission
+      tags:
+      - Missions
+  /missions/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a mission (only if not assigned to a cat)
+      parameters:
+      - description: Mission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete mission
+      tags:
+      - Missions
+    get:
+      consumes:
+      - application/json
+      description: Get a single mission by its ID with cat and targets
+      parameters:
+      - description: Mission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Mission'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get mission by ID
+      tags:
+      - Missions
+    patch:
+      consumes:
+      - application/json
+      description: Update mission completion status
+      parameters:
+      - description: Mission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update data
+        in: body
+        name: dto
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateMissionDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update mission status
+      tags:
+      - Missions
+  /missions/{id}/assign/{cat_id}:
+    patch:
+      consumes:
+      - application/json
+      description: Assign a spy cat to a mission (cat can only have one active mission)
+      parameters:
+      - description: Mission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Cat ID
+        in: path
+        name: cat_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Assign cat to mission
+      tags:
+      - Missions
+  /missions/{id}/targets:
+    post:
+      consumes:
+      - application/json
+      description: Add a new target to an existing mission (max 3 targets per mission)
+      parameters:
+      - description: Mission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Target data
+        in: body
+        name: dto
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateTargetDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Add target to mission
+      tags:
+      - Missions
+  /missions/{id}/targets/{target_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a target from mission (cannot delete if completed, min 1
+        target required)
+      parameters:
+      - description: Mission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Target ID
+        in: path
+        name: target_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete target
+      tags:
+      - Missions
+    patch:
+      consumes:
+      - application/json
+      description: Update target notes or completion status (cannot update if completed)
+      parameters:
+      - description: Mission ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Target ID
+        in: path
+        name: target_id
+        required: true
+        type: integer
+      - description: Update data
+        in: body
+        name: dto
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateTargetDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update target
+      tags:
+      - Missions
+swagger: "2.0"
