@@ -65,11 +65,6 @@ Run unit tests:
 go test ./internal/service/tests/...
 ```
 
-Run tests with coverage:
-```bash
-go test -cover ./internal/service/tests/...
-```
-
 ### Database Migrations
 
 Migrations are automatically applied on application startup using GORM's AutoMigrate feature. Manual SQL migrations are also available in the `migrations/` directory.

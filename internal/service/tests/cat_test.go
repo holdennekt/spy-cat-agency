@@ -51,20 +51,22 @@ func (m *MockCatValidator) ValidateBreed(breed string) (bool, error) {
 }
 
 func TestCatService_CreateCat(t *testing.T) {
-	mockRepo := new(MockCatRepository)
-	mockValidator := new(MockCatValidator)
-	catService := service.NewCatService(mockRepo, mockValidator)
-
-	catDTO := &models.CreateCatDTO{
-		Name:            "Agent Whiskers",
-		YearsExperience: 5,
-		Breed:           "Persian",
-		Salary:          50000,
-	}
-
 	t.Run("successful creation", func(t *testing.T) {
+		mockRepo := new(MockCatRepository)
+		mockValidator := new(MockCatValidator)
+		catService := service.NewCatService(mockRepo, mockValidator)
+
+		catDTO := &models.CreateCatDTO{
+			Name:            "Agent Whiskers",
+			YearsExperience: 5,
+			Breed:           "Persian",
+			Salary:          50000,
+		}
+
 		mockValidator.On("ValidateBreed", "Persian").Return(true, nil)
-		mockRepo.On("Create", catDTO).Return(nil)
+		mockRepo.On("Create", mock.MatchedBy(func(cat *models.Cat) bool {
+			return cat.Name == "Agent Whiskers" && cat.Breed == "Persian"
+		})).Return(nil)
 
 		_, err := catService.Create(catDTO)
 
@@ -74,7 +76,9 @@ func TestCatService_CreateCat(t *testing.T) {
 	})
 
 	t.Run("invalid breed", func(t *testing.T) {
-		mockValidator.On("ValidateBreed", "InvalidBreed").Return(false, nil)
+		mockRepo := new(MockCatRepository)
+		mockValidator := new(MockCatValidator)
+		catService := service.NewCatService(mockRepo, mockValidator)
 
 		invalidCatDTO := &models.CreateCatDTO{
 			Name:            "Agent Invalid",
@@ -82,6 +86,8 @@ func TestCatService_CreateCat(t *testing.T) {
 			Breed:           "InvalidBreed",
 			Salary:          45000,
 		}
+
+		mockValidator.On("ValidateBreed", "InvalidBreed").Return(false, nil)
 
 		_, err := catService.Create(invalidCatDTO)
 
